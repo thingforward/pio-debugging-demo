@@ -1,5 +1,5 @@
 // PlatformIO Unified Debugging / mbed threading demo code
-// 2018, Digital Incubation and Growth GmbH, CC0
+// 2018, Digital Incubation and Growth GmbH, Apache License 2.0
 
 #include <mbed.h>
 #include <math.h>
