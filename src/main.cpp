@@ -8,31 +8,44 @@
 struct counter_s {
     int  counter;
     char buf[32];
-    Mutex m;
+    Mutex _m;
 };
 
-void counter_update(counter_s *s) {
-    s->m.lock();
-
-    s->counter++;
-    snprintf(s->buf, sizeof(s->buf), "T=%p C=%i", s->m.get_owner(), s->counter);
-    
-    s->m.unlock();
-}
-
+// Initializes the counter, clears buffer, protected via mutex. 
 void counter_init(counter_s *s) {
-    s->m.lock();
+    s->_m.lock();
 
     s->counter = 0;
     memset(s->buf, 0, sizeof(s->buf));
     
-    s->m.unlock();
+    s->_m.unlock();
 }
 
+// Increments counter by one, sprintf's it into the 
+// buffer, together with the current owner of the Mutex.
+// Protected via mutex. 
+void counter_update(counter_s *s) {
+    s->_m.lock();
+
+    s->counter++;
+    snprintf(s->buf, sizeof(s->buf), "T=%p C=%i", s->_m.get_owner(), s->counter);
+    
+    s->_m.unlock();
+}
+
+// dumps buffer to serial.
+// Protected via mutex. 
+void counter_dump(counter_s *s, Serial& out) {
+    if (s->_m.trylock()) {
+        out.printf("%s\n\r", s->buf);        
+        s->_m.unlock();
+    }
+}
+
+// -- threading
 
 DigitalOut led(LED1);
 Serial pc(USBTX, USBRX); 
-
 
 // counter_thread takes the counter_s struct, waits for 
 // random amount of time (0..1s) and calls counter_update to
@@ -59,13 +72,12 @@ void blink_thread(counter_s *s) {
 // once per second.
 void output_thread(counter_s *s) {
     while(true) {
-        if (s->m.trylock()) {
-            pc.printf("%s\n\r", s->buf);        
-            s->m.unlock();
-        }
+        counter_dump(s, pc);
         wait(1);
     }
 }
+
+// -- main
 
 counter_s c;
 
